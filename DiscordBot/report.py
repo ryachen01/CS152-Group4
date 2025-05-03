@@ -17,6 +17,7 @@ class Report:
         self.state = State.REPORT_START
         self.client = client
         self.message = None
+        self.needs_review = False
     
     async def handle_message(self, message):
         '''
@@ -26,7 +27,7 @@ class Report:
         '''
 
         if message.content == self.CANCEL_KEYWORD:
-            self.state = State.REPORT_COMPLETE
+            self.end_report()
             return ["Report cancelled."]
         
         if self.state == State.REPORT_START:
@@ -35,6 +36,7 @@ class Report:
             reply += "Please copy paste the link to the message you want to report.\n"
             reply += "You can obtain this link by right-clicking the message and clicking `Copy Message Link`."
             self.state = State.AWAITING_MESSAGE
+
             return [reply]
         
         if self.state == State.AWAITING_MESSAGE:
@@ -53,18 +55,30 @@ class Report:
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
+            self.message = message
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
                     "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
+
+            
         
         if self.state == State.MESSAGE_IDENTIFIED:
+            self.needs_review = True
+            self.end_report()
             return ["<insert rest of reporting flow here>"]
 
         return []
 
+    def end_report(self):
+        self.state == State.REPORT_COMPLETE
+        if self.needs_review:
+            self.client.pending_reports.append(self.message)
+
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
+
+
     
 
 

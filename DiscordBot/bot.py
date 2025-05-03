@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 from report import Report
+from review import Review
 import pdb
 
 # Set up logging to the console
@@ -34,6 +35,8 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+        self.reviews = {}
+        self.pending_reports = [] # list of reports that haven't been reviewed yet
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -99,6 +102,10 @@ class ModBot(discord.Client):
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
+
+        if message.channel.name == f'group-{self.group_num}-mod':
+            await self.handle_mod_message(message)
+
         # Only handle messages sent in the "group-#" channel
         if not message.channel.name == f'group-{self.group_num}':
             return
@@ -109,7 +116,28 @@ class ModBot(discord.Client):
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
 
-    
+    async def handle_mod_message(self, message):
+        if message.content == Review.HELP_KEYWORD:
+            reply =  "Use the `review` command to begin the mod review process.\n"
+            reply += "Use the `cancel` command to cancel the review process.\n"
+            await message.channel.send(reply)
+            return
+        
+        author_id = message.author.id
+        if author_id not in self.reviews and not message.content.startswith(Review.START_KEYWORD):
+            return
+
+        # If we don't currently have an active review for this moderator, add one
+        if author_id not in self.reviews:
+            self.reviews[author_id] = Review(self)
+
+        responses = await self.reviews[author_id].handle_message(message)
+        for r in responses:
+            await message.channel.send(r)
+
+        if self.reviews[author_id].review_complete():
+            self.reviews.pop(author_id)
+
     def eval_text(self, message):
         ''''
         TODO: Once you know how you want to evaluate messages in your channel, 
