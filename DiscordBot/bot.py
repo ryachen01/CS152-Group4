@@ -107,12 +107,14 @@ class ModBot(discord.Client):
             completed_report = self.reports[author_id]
             if completed_report.needs_review:
                 mod_channel = self.mod_channels[completed_report.message.guild.id]
+                await mod_channel.send(completed_report.message.jump_url)
                 await mod_channel.send(
                     f'Requesting review for reported message:\n{completed_report.message.author.name}: "{completed_report.message.content}"\n'
                 )
                 await mod_channel.send(
                     f"Report Description:\n{completed_report.report_description}"
                 )
+
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
