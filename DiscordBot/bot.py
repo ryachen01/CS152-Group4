@@ -37,8 +37,11 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {}  # Map from guild to the mod channel id for that guild
         self.reports = {}  # Map from user IDs to the state of their report
-        self.reviews = {}
-        self.pending_reports = []  # list of reports that haven't been reviewed yet
+        self.reviews = {}  # Map from moderator IDs to the state of their review
+        self.pending_reports = (
+            {}
+        )  # list of reports that haven't been reviewed yet. maps message to tuple of information regarding the report
+        self.user_violations = {}  # Map from user IDs to number of violations recorded
 
     async def on_ready(self):
         print(f"{self.user.name} has connected to Discord! It is these guilds:")
@@ -107,13 +110,17 @@ class ModBot(discord.Client):
             completed_report = self.reports[author_id]
             if completed_report.needs_review:
                 mod_channel = self.mod_channels[completed_report.message.guild.id]
-                await mod_channel.send(completed_report.message.jump_url)
+
                 await mod_channel.send(
                     f'Requesting review for reported message:\n{completed_report.message.author.name}: "{completed_report.message.content}"\n'
                 )
                 await mod_channel.send(
-                    f"Report Description:\n{completed_report.report_description}"
+                    f"Link to reported message:\n{completed_report.message.jump_url}"
                 )
+                if completed_report.is_emergency:
+                    await mod_channel.send(
+                        "\nThis report has indicated that this is an emergency and may require law enforcement involvement. Please review ASAP!"
+                    )
 
             self.reports.pop(author_id)
 
@@ -127,12 +134,13 @@ class ModBot(discord.Client):
             return
 
         # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(
-            f'Forwarded message:\n{message.author.name}: "{message.content}"'
-        )
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+
+        # mod_channel = self.mod_channels[message.guild.id]
+        # await mod_channel.send(
+        #     f'Forwarded message:\n{message.author.name}: "{message.content}"'
+        # )
+        # scores = self.eval_text(message.content)
+        # await mod_channel.send(self.code_format(scores))
 
     async def handle_mod_message(self, message):
         if message.content == Review.HELP_KEYWORD:

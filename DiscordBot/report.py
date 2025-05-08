@@ -13,11 +13,11 @@ class State(Enum):
 
 
 class ReportType(Enum):
-    HATE_SPEECH = auto()
-    VIOLENCE = auto()
-    SELF_HARM = auto()
-    HARASSMENT = auto()
-    OTHER = auto()
+    HATE_SPEECH = "Hate Speech"
+    VIOLENCE = "Violence"
+    SELF_HARM = "Self-Harm/Suicide"
+    HARASSMENT = "Harassment"
+    OTHER = "Other"
 
 
 class Response(Enum):
@@ -36,7 +36,9 @@ class Report:
         self.client = client
         self.message = None
         self.needs_review = False
+        self.is_emergency = False
         self.report_type = None
+        self.report_sub_type = None
         self.report_description = ""
         self.response_state = None
 
@@ -163,7 +165,8 @@ class Report:
                     ]
                     if category_idx > len(hate_speech_cats):
                         return error_message
-                    self.report_description += f"The user has reported hate speech in the form of {hate_speech_cats[category_idx]}\n"
+                    self.report_description += f"The user has reported Hate Speech in the form of {hate_speech_cats[category_idx]}\n"
+                    self.report_sub_type = hate_speech_cats[category_idx]
                     self.state = State.PROCESSING_RESPONSE
                     self.response_state = Response.IS_ONGOING_PATTERN
                     return self.prompt_response()
@@ -181,7 +184,8 @@ class Report:
                     ]
                     if category_idx > len(violence_cats):
                         return error_message
-                    self.report_description += f"The user has reported violent content in the form of {violence_cats[category_idx]}\n"
+                    self.report_description += f"The user has reported Violent Content in the form of {violence_cats[category_idx]}\n"
+                    self.report_sub_type = violence_cats[category_idx]
                     self.state = State.PROCESSING_RESPONSE
                     if category_idx == 4:
                         self.response_state = Response.IS_EMERGENCY
@@ -203,7 +207,8 @@ class Report:
                     if category_idx > len(self_harm_cats):
                         return error_message
 
-                    self.report_description += f"The user has reported self-harm/suicide related content in the form of {self_harm_cats[category_idx]}\n"
+                    self.report_description += f"The user has reported Self-Harm/Suicide related content in the form of {self_harm_cats[category_idx]}\n"
+                    self.report_sub_type = self_harm_cats[category_idx]
                     self.state = State.PROCESSING_RESPONSE
                     if category_idx == 3 or category_idx == 4:
                         self.response_state = Response.IS_EMERGENCY
@@ -224,7 +229,8 @@ class Report:
                     if category_idx > len(harassment_cats):
                         return error_message
 
-                    self.report_description += f"The user has reported harassment in the form of {harassment_cats[category_idx]}\n"
+                    self.report_description += f"The user has reported Harassment in the form of {harassment_cats[category_idx]}\n"
+                    self.report_sub_type = harassment_cats[category_idx]
                     self.state = State.PROCESSING_RESPONSE
                     self.response_state = Response.IS_ONGOING_PATTERN
                     return self.prompt_response()
@@ -246,8 +252,10 @@ class Report:
                 return self.prompt_response()
             elif self.response_state == Response.IS_EMERGENCY:
                 if is_yes:
+                    self.needs_review = True
+                    self.is_emergency = True
                     self.end_report()
-                    reply = "We will contact local law enforcement to conduct a wellness check. Thank you for looking out for your friends."
+                    reply = "We will have our content moderation team review the message and if appropriate will contact local law enforcement to conduct a wellness check. Thank you for looking out for your friends."
                     return [reply]
                 else:
                     self.response_state = Response.BLOCK_USER
@@ -294,7 +302,13 @@ class Report:
     def end_report(self):
         self.state = State.REPORT_COMPLETE
         if self.needs_review:
-            self.client.pending_reports.append(self.message)
+            self.client.pending_reports[self.message] = {
+                "report_category": self.report_type,
+                "report_sub_category": self.report_sub_type,
+                "report_description": self.report_description,
+                "is_emergency": self.is_emergency,
+                "valid_emergency_count": 0,
+            }
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
