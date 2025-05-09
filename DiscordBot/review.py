@@ -136,14 +136,24 @@ class Review:
                 self.client.user_violations[message_author] += 1
             else:
                 self.client.user_violations[message_author] = 1
+
+            await self.message.author.send(
+                "SYSTEM MESSAGE: A violation has been detected resulting in post removal. Additional violations will result in bans."
+            )
             await self.message.delete()
             self.end_report()
             if self.client.user_violations[message_author] >= 10:  # 3rd threshold
-                return [f"The user {message_author} has been permanently banned"]
+                return [
+                    f"SYSTEM MESSAGE: The user {message_author} has been permanently banned"
+                ]
             elif self.client.user_violations[message_author] >= 5:  # 2nd threshold
-                return [f"The user {message_author} has been temporarily banned"]
+                return [
+                    f"SYSTEM MESSAGE: The user {message_author} has been temporarily banned"
+                ]
             elif self.client.user_violations[message_author] >= 2:  # 1st threshold
-                return [f"The user {message_author} has been temporarily shadow banned"]
+                return [
+                    f"SYSTEM MESSAGE: The user {message_author} has been temporarily shadow banned"
+                ]
             else:
                 return []
 
