@@ -9,6 +9,10 @@ import requests
 from report import Report
 from review import Review
 import pdb
+import sys
+
+sys.path.append("../SuicidalIdeationDetector")
+from train_classifier import BertClassifier
 
 # Set up logging to the console
 logger = logging.getLogger("discord")
@@ -42,6 +46,12 @@ class ModBot(discord.Client):
             {}
         )  # list of reports that haven't been reviewed yet. maps message to tuple of information regarding the report
         self.user_violations = {}  # Map from user IDs to number of violations recorded
+        model_path = (
+            "../SuicidalIdeationDetector/bert-base-uncased_suicide_classifier"
+        )
+
+        self.classifier = BertClassifier(model_name="bert-base-uncased")
+        self.classifier.load_model(model_path)
 
     async def on_ready(self):
         print(f"{self.user.name} has connected to Discord! It is these guilds:")
@@ -130,8 +140,8 @@ class ModBot(discord.Client):
             await self.handle_mod_message(message)
 
         # Only handle messages sent in the "group-#" channel
-        if not message.channel.name == f"group-{self.group_num}":
-            return
+        if message.channel.name == f"group-{self.group_num}":
+            await self.handle_user_message(message)
 
         # Forward the message to the mod channel
 
@@ -165,6 +175,20 @@ class ModBot(discord.Client):
 
         if self.reviews[author_id].review_complete():
             self.reviews.pop(author_id)
+
+    async def handle_user_message(self, message):
+        print("handling user message!")
+        message_text = message.content
+        predicted_class, confidence = self.classifier.predict_text(message_text)
+        print(predicted_class, confidence)
+        if predicted_class == 0:
+            print(
+                f"Message: {message_text} labeled as non-suicidal with confidence {confidence}"
+            )
+        else:
+            print(
+                f"Message: {message_text} labeled as suicidal with confidence {confidence}"
+            )
 
     def eval_text(self, message):
         """'
