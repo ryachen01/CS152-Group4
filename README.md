@@ -1,4 +1,9 @@
 # CS 152 - Trust and Safety Engineering
+
+## Classifier Models
+
+To use our pre-trained classifier model, download it here at https://drive.google.com/drive/folders/1SgebTThVcLKMS515eX7uo3ATdUxhhtUp?usp=drive_link and place the folder in SuicidalIdeationDetector
+
 ## Discord Bot Framework Code
 
 This is the base framework for students to complete Milestone 2 of the CS 152 final project. Please follow the instructions to fork this repository into your repository and make all of your additions there. 
