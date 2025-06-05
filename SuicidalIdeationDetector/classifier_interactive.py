@@ -1,4 +1,4 @@
-from train_classifier import BertClassifier
+from train_classifier import BertClassifier, clean_sentence
 import argparse
 
 def main():
@@ -11,6 +11,7 @@ def main():
     bert_loader = BertClassifier(model_name=args.model)
     
     bert_loader.load_model(args.model)
+    # bert_loader.model.eval()
 
     while True:
         user_input = input("\nEnter text to classify (or 'quit' to exit): ")
@@ -18,7 +19,7 @@ def main():
             break
             
         predicted_class, confidence = bert_loader.predict_text(user_input)
-        print(f"\nPrediction for text: '{user_input}'")
+        print(f"\nPrediction for text: '{clean_sentence(user_input)}'")
         print(f"Predicted class: {predicted_class}")
         print(f"Confidence: {confidence:.2%}")
     

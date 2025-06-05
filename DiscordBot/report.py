@@ -87,10 +87,8 @@ class Report:
                 ]
 
             self.message = message
-            # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            # return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-            #         "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
+
 
             reply = "What would you like to report? These are some options: \n\n"
             reply += "1) Hate Speech\n"
@@ -109,7 +107,7 @@ class Report:
                 self.state = State.PROCESSING_REPORT
                 if report_num == 1:
                     self.report_type = ReportType.HATE_SPEECH
-                    reply = "What sort of hate speech do you believe is contained in the message?\n\n"
+                    reply = "Please select the type of hate speech content\n\n"
                     reply += "1) Homophobia\n"
                     reply += "2) Racism\n"
                     reply += "3) Sexism\n"
@@ -308,6 +306,7 @@ class Report:
                 "report_description": self.report_description,
                 "is_emergency": self.is_emergency,
                 "valid_emergency_count": 0,
+                "auto_flagged": False
             }
 
     def report_complete(self):

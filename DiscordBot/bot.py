@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import requests
-from report import Report
+from report import Report, ReportType
 from review import Review
 import pdb
 import sys
@@ -52,6 +52,11 @@ class ModBot(discord.Client):
 
         self.classifier = BertClassifier(model_name="bert-base-uncased")
         self.classifier.load_model(model_path)
+        self.classifier_thresholds = {
+            "low": 0.6,
+            "medium": 0.8,
+            "high": 0.9,
+        }
 
     async def on_ready(self):
         print(f"{self.user.name} has connected to Discord! It is these guilds:")
@@ -94,6 +99,20 @@ class ModBot(discord.Client):
         if message.content == Report.HELP_KEYWORD:
             reply = "Use the `report` command to begin the reporting process.\n"
             reply += "Use the `cancel` command to cancel the report process.\n"
+            await message.channel.send(reply)
+            return
+
+        if message.content.startswith("Classify: "):
+            message_to_classify = message.content.split("Classify: ")[1]
+            predicted_class, confidence = self.classifier.predict_text(message_to_classify)
+            if predicted_class == 0:
+                reply = (
+                    f"Message: \"{message_to_classify}\" labeled as non-suicidal with confidence {confidence}.\n"
+                )
+            else:
+                reply = (
+                    f"Message: \"{message_to_classify}\" labeled as suicidal with confidence {confidence}.\n")
+
             await message.channel.send(reply)
             return
 
@@ -180,15 +199,39 @@ class ModBot(discord.Client):
         print("handling user message!")
         message_text = message.content
         predicted_class, confidence = self.classifier.predict_text(message_text)
-        print(predicted_class, confidence)
         if predicted_class == 0:
             print(
-                f"Message: {message_text} labeled as non-suicidal with confidence {confidence}"
+                f"Message: \"{message_text}\" labeled as non-suicidal with confidence {confidence}"
             )
         else:
             print(
-                f"Message: {message_text} labeled as suicidal with confidence {confidence}"
+                f"Message: \"{message_text}\" labeled as suicidal with confidence {confidence}"
             )
+            if confidence > self.classifier_thresholds['low']:
+                confidence_amount = "LOW" 
+                if confidence > self.classifier_thresholds['medium']:
+                    confidence_amount = "MEDIUM"
+                if confidence > self.classifier_thresholds['high']:
+                    confidence_amount = "HIGH"
+
+                self.pending_reports[message] = {
+                    "report_category": ReportType.SELF_HARM,
+                    "report_sub_category": None,
+                    "report_description": "The automatic flagging system has identified this message as potentially Self-Harm/Suicide related content",
+                    "is_emergency": False,
+                    "valid_emergency_count": 0,
+                    "auto_flagged": True
+                }
+                mod_channel = self.mod_channels[message.guild.id]
+
+                await mod_channel.send(
+                    f'Requesting review for auto-flagged message:\n{message.author.name}: "{message.content}"\nClassifier Confidence: {confidence_amount}'
+                )
+                await mod_channel.send(
+                    f"Link to reported message:\n{message.jump_url}"
+                )
+
+   
 
     def eval_text(self, message):
         """'

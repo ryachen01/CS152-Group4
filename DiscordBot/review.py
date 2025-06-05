@@ -16,6 +16,7 @@ class State(Enum):
     MESSAGE_IDENTIFIED = auto()
     EMERGENCY_IDENTIFIED = auto()
     REVIEW_COMPLETE = auto()
+    AUTO_FLAGGED = auto()
 
 
 class Review:
@@ -75,7 +76,20 @@ class Review:
 
             self.message = message
             self.report_info = self.client.pending_reports[self.message]
-            self.state = State.MESSAGE_IDENTIFIED
+            if self.report_info["auto_flagged"]:
+                self.state = State.AUTO_FLAGGED
+                reply = (
+                    f"Report Description:\n{self.report_info['report_description']}\n\n"
+                )
+                reply += "Which of the following categories does this message best fall into?\n"
+                reply += "1) Self-Harm Imagery\n"
+                reply += "2) Self-Harm Methods/Instructions\n"
+                reply += "3) Glorification of Self-Harm\n"
+                reply += "4) Active Suicidal Threats\n"
+                reply += "5) Encouraging Self-Harm in Others\n"
+                reply += "6) Doesn't Violate Content Policies"
+                return [reply]
+
             if self.report_info["is_emergency"]:
                 self.state = State.EMERGENCY_IDENTIFIED
                 reply = (
@@ -84,6 +98,7 @@ class Review:
                 reply += "Does this message constitute a serious threat or emergency that requires law enforcement involvement?"
                 return [reply]
 
+            self.state = State.MESSAGE_IDENTIFIED
             if self.report_info["report_category"] == ReportType.OTHER:
                 reply = (
                     f"Report Description:\n{self.report_info['report_description']}\n\n"
@@ -118,6 +133,32 @@ class Review:
                 return await self.handle_outcome(Outcome.VALID_EMERGENCY)
             else:
                 return await self.handle_outcome(Outcome.INVALID_EMERGENCY)
+
+        if self.state == State.AUTO_FLAGGED:
+            error_message = ["It seems that your input was invalid. Please try again."]
+            try:
+                report_num = int(message.content)
+                if report_num == 1 or report_num == 2 or report_num == 3:
+                    partial_reply = "Thank you for reviewing this report. The post will be removed and the user may be temporarily or permanently banned"
+                    reply = await self.handle_outcome(Outcome.VIOLATE_POLICY)
+                    reply.insert(0, partial_reply)
+                    return reply
+                elif report_num == 4 or report_num == 5:
+                    self.state = State.EMERGENCY_IDENTIFIED
+                    reply = (
+                        f"Report Description:\n{self.report_info['report_description']}\n"
+                    )
+                    reply += "Does this message constitute a serious threat or emergency that requires law enforcement involvement?"
+                    return [reply]
+                elif report_num == 6:
+                    self.end_report()
+                    return [
+                        "Thank you for reviewing this report. No additional action will be taken and the report will be closed"
+                    ]
+                else:
+                    return error_message
+            except ValueError:
+                return error_message
 
         return []
 
